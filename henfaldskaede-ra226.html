@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Henfaldsk&aelig;de &mdash; Ra-226</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+
+/* ── CSS-variabler: begge temaer ── */
+#sim.dark {
+  --bg0:#030810; --bg1:#060e18; --bg2:#0a1622; --bg3:#0f1e2d;
+  --border:#1a3a52;
+  --green:#00ff9f; --cyan:#00cfff; --yellow:#ffd93d; --purple:#c77dff;
+  --text:#d0eef5; --dim:#8ec8d8;
+}
+#sim.light {
+  --bg0:#f0f4f8; --bg1:#ffffff; --bg2:#e8f0f8; --bg3:#dce8f4;
+  --border:#b0c8e0;
+  --green:#006635; --cyan:#0055aa; --yellow:#aa6600; --purple:#6633aa;
+  --text:#0d1a22; --dim:#2a4a60;
+}
+
+/* ── Rod-element ── */
+#sim {
+  background:var(--bg0);
+  color:var(--text);
+  font:13px 'Courier New','Lucida Console',monospace;
+  padding:10px 16px 16px;
+  min-height:100vh;
+  transition:background .3s,color .3s;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--bg0)}
+::-webkit-scrollbar-thumb{background:var(--border)}
+
+/* ── HEADER ── */
+#header {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding-bottom:8px;
+  margin-bottom:6px;
+  border-bottom:1px solid var(--border);
+}
+.radio-icon {
+  font-size:26px;
+  color:var(--green);
+  animation:glowpulse 2.5s ease-in-out infinite;
+  flex-shrink:0;
+}
+@keyframes glowpulse {
+  0%,100%{opacity:1;text-shadow:0 0 8px var(--green)}
+  50%{opacity:.4;text-shadow:none}
+}
+h1 {
+  font-size:18px;
+  font-weight:700;
+  letter-spacing:.20em;
+  color:var(--green);
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+#sub {
+  font-size:11px;
+  letter-spacing:.10em;
+  color:var(--dim);
+  text-transform:uppercase;
+  margin-bottom:8px;
+}
+
+/* ── LAYOUT ── */
+#simrow{display:flex;gap:12px;align-items:flex-start}
+#siminner{flex:1;min-width:0}
+#main{display:flex;gap:8px;margin-bottom:8px}
+#cvwrap{position:relative;flex-shrink:0}
+canvas{display:block}
+#pcan{position:absolute;top:0;left:0;pointer-events:none}
+
+/* ── ISOTOP-PANEL (højre) ── */
+#panel{width:155px;display:flex;flex-direction:column;gap:5px;min-width:0}
+
+/* ── CARD ── */
+.card {
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-left:3px solid var(--green);
+  padding:7px 8px;
+}
+
+/* ── SEKTION-TITEL (indeni card) ── */
+.clbl {
+  font-size:10px;letter-spacing:.18em;color:var(--green);
+  text-transform:uppercase;margin-bottom:4px;
+}
+
+/* ── ISOTOP-DISPLAY ── */
+#si{display:flex;align-items:baseline;gap:5px;margin-bottom:2px}
+#sym{font-size:34px;font-weight:bold;color:var(--text);line-height:1}
+#mnum{font-size:20px;color:var(--cyan)}
+#iname{font-size:11px;color:var(--green);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.mc{background:var(--bg1);border:1px solid var(--border);padding:4px 5px}
+.ml{font-size:9px;letter-spacing:.10em;color:var(--dim);text-transform:uppercase}
+.mv{font-size:13px;color:var(--text);font-weight:bold;margin-top:1px}
+#dtag{font-size:18px;font-weight:bold;padding:2px 6px;display:inline-block;margin-top:2px}
+#hl{font-size:13px;color:var(--cyan);font-weight:bold;margin-top:1px}
+#pbar{height:3px;background:var(--bg0);margin-top:6px}
+#prog{height:3px;width:0%;background:var(--green)}
+#si2{text-align:right;font-size:10px;color:var(--dim);letter-spacing:.06em;margin-top:2px}
+#eqh{font-size:12px;line-height:1.8;color:var(--text)}
+.ac{color:var(--yellow)}
+.bc{color:var(--cyan)}
+.nc{color:var(--dim)}
+
+/* ── BOTTOM: LEGENDE + KÆDE ── */
+#bottom{display:flex;gap:8px;margin-bottom:8px}
+#leg{flex:0 0 auto;width:172px}
+#tlbox{flex:1;min-width:0}
+.lr{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);margin-bottom:4px}
+.ldot{width:11px;height:11px;border-radius:50%;flex-shrink:0;display:inline-block}
+.lring{width:11px;height:11px;border-radius:50%;border:2px dashed var(--cyan);flex-shrink:0;display:inline-block}
+.lsq{width:11px;height:11px;flex-shrink:0;display:inline-block;vertical-align:middle}
+.ldsh{width:16px;border-top:2px dashed var(--border);flex-shrink:0;display:inline-block}
+
+/* ── HENFALDSKÆDE-TIDSLINJE ── */
+#tl{display:flex;align-items:center;gap:2px;flex-wrap:wrap}
+.tn{
+  font-size:10px;letter-spacing:.05em;
+  color:var(--dim);border:1px solid var(--border);
+  padding:2px 5px;cursor:pointer;white-space:nowrap;
+  transition:color .15s,border-color .15s;
+}
+.tn:hover{color:var(--text);border-color:var(--text)}
+.tn.act{color:var(--green);border-color:var(--green)}
+.ta{font-size:12px;flex-shrink:0}
+.ta.a{color:var(--yellow)}
+.ta.b{color:var(--cyan)}
+
+/* ── KONTROL-LINJE ── */
+#ctrl{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+button{
+  background:var(--bg3);border:1px solid var(--border);
+  color:var(--text);padding:5px 10px;cursor:pointer;
+  font:11px 'Courier New',monospace;letter-spacing:.08em;text-transform:uppercase;
+  transition:border-color .15s,color .15s;
+  white-space:nowrap;
+}
+button:hover{border-color:var(--green);color:var(--green)}
+#spdv{font-size:11px;color:var(--cyan);min-width:26px}
+input[type=range]{flex:1;accent-color:var(--cyan);max-width:90px}
+#sttxt{font-size:11px;letter-spacing:.08em;margin-left:auto;color:var(--dim)}
+
+/* ── FORKLARING-PANEL ── */
+#expanel{
+  flex:0 0 300px;
+  background:var(--bg1);
+  border:1px solid var(--border);
+  padding:13px;
+  font-size:12px;line-height:1.7;
+  font-family:'Courier New',monospace;
+  overflow-y:auto;
+}
+.sec{border:1px solid var(--border);background:var(--bg2);padding:10px 12px;margin-bottom:8px}
+.sec:last-child{margin-bottom:0}
+.sec-title{
+  font-size:10px;letter-spacing:.22em;color:var(--green);text-transform:uppercase;
+  border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:10px;
+}
+.esub{
+  font-size:10px;letter-spacing:.15em;color:var(--yellow);
+  text-transform:uppercase;margin:10px 0 4px;
+}
+.ep{color:var(--text);margin-bottom:6px}
+.ehi{color:var(--cyan);font-weight:bold}
+
+/* ── TEMA-KNAP (fast position) ── */
+#thmbtn{position:fixed;top:12px;right:16px;z-index:99}
+</style>
+</head>
+<body style="margin:0;padding:0">
+
+<div id="sim" class="dark">
+  <button id="thmbtn" onclick="toggleTheme()">&#x263C; LYS TILSTAND</button>
+
+  <!-- HEADER -->
+  <div id="header">
+    <span class="radio-icon">&#x2622;</span>
+    <h1>Henfaldsk&aelig;de Simulator</h1>
+  </div>
+  <div id="sub">Ra&#8209;226 &rarr; Pb&#8209;206 &nbsp;|&nbsp; Kernekort &nbsp;|&nbsp; 10 Trin</div>
+
+  <div id="simrow">
+    <div id="siminner">
+      <div id="main">
+        <div id="cvwrap">
+          <canvas id="chart"></canvas>
+          <canvas id="pcan"></canvas>
+        </div>
+        <div id="panel">
+          <div class="card" id="icard">
+            <div class="clbl">Isotop</div>
+            <div id="si"><div id="sym">Ra</div><div id="mnum">226</div></div>
+            <div id="iname">RADIUM&#8209;226</div>
+            <div class="g2">
+              <div class="mc"><div class="ml">Z</div><div class="mv" id="zv">88</div></div>
+              <div class="mc"><div class="ml">N</div><div class="mv" id="nv">138</div></div>
+              <div class="mc"><div class="ml">Henfald</div><div id="dtag">&alpha;</div></div>
+              <div class="mc"><div class="ml">Energi</div><div class="mv" id="ev">4.87 MeV</div></div>
+            </div>
+            <div class="mc" style="margin-top:3px"><div class="ml">Halveringstid</div><div id="hl">1600 &aring;r</div></div>
+            <div id="pbar"><div id="prog"></div></div>
+            <div id="si2">Trin 1 / 10</div>
+          </div>
+          <div class="card">
+            <div class="clbl">Henfaldsreaktion</div>
+            <div id="eqh"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="bottom">
+        <div class="card" id="leg">
+          <div class="clbl">Legende</div>
+          <div class="lr"><span class="ldot" style="background:#ffd60a;width:13px;height:13px"></span>&alpha;&#8209;partikel (<sup>4</sup>He<sup>2+</sup>)</div>
+          <div class="lr"><span class="ldot" style="background:#ff6600;width:16px;height:16px"></span>Tilbagekastet kerne</div>
+          <div class="lr"><span class="ldot" style="background:#40aaff;width:9px;height:9px"></span>&beta;<sup>&#8722;</sup>&#8209;partikel (e<sup>&#8722;</sup>)</div>
+          <div class="lr"><span class="lring"></span>Antineutrino (&nu;&#773;<sub>e</sub>)</div>
+          <div class="lr"><span class="lsq" style="background:#1c1300;border:2px solid #ffd60a"></span>&alpha;&#8209;radioaktiv</div>
+          <div class="lr"><span class="lsq" style="background:#001030;border:2px solid #2090ff"></span>&beta;<sup>&#8722;</sup>&#8209;radioaktiv</div>
+          <div class="lr"><span class="lsq" style="background:#001408;border:2px solid #aaffcc"></span>Stabilt slutprodukt</div>
+          <div class="lr"><span class="ldsh"></span>N=126 (magisk tal)</div>
+        </div>
+        <div class="card" id="tlbox">
+          <div class="clbl">Henfaldsk&aelig;de</div>
+          <div id="tl"></div>
+        </div>
+      </div>
+
+      <div id="ctrl">
+        <button id="ppbtn" onclick="togglePP()">&#x23F8; PAUSE</button>
+        <button onclick="doRestart()">&#x21BA; GENSTART</button>
+        <button id="kobtn" onclick="kopierKode()">&#x2398; KOPIER KODE</button>
+        <span style="font-size:11px;color:var(--dim)">Fart:</span>
+        <input type="range" min="1" max="7" value="3" step="1" id="spds" oninput="setSpd(+this.value)">
+        <span id="spdv">1x</span>
+        <span id="sttxt">K&Oslash;RENDE</span>
+      </div>
+    </div>
+
+    <div id="expanel">
+      <div class="sec">
+        <div class="sec-title">Hvad viser simuleringen?</div>
+        <p class="ep">Ra-226 er et naturligt forekommende radioaktivt grundstof i jordskorpen. Det er selv et produkt af U-238-serien og har en halveringstid p&aring; 1600 &aring;r. Ra-226 henfalder gennem en k&aelig;de p&aring; 10 trin og ender som det stabile Pb-206.</p>
+      </div>
+      <div class="sec">
+        <div class="esub">Kernekortet</div>
+        <p class="ep">Diagrammet viser isotoperne med protontal Z (lodret) mod neutrontal N (vandret). Hvert trin i k&aelig;den er markeret med en farvet boks &mdash; <span class="ehi">gul kant</span> for &alpha;-radioaktive, <span class="ehi">bl&aring; kant</span> for &beta;<sup>&#8722;</sup>-radioaktive og <span class="ehi">lys kant</span> for det stabile slutprodukt.</p>
+        <div class="esub">Alfahenfald</div>
+        <p class="ep">Kernen udsender en <span class="ehi">&alpha;-partikel</span> (gul) best&aring;ende af 2 protoner og 2 neutroner (<sup>4</sup>He<sup>2+</sup>). Datterkernens tilbagekast (orange) sker i modsat retning som f&oslash;lge af impulsbevarelse. Z falder med 2, N falder med 2 &mdash; et diagonalt skridt mod nedre venstre i diagrammet.</p>
+        <div class="esub">Betaminus-henfald</div>
+        <p class="ep">Et neutron omdannes til en proton. Kernen udsender en <span class="ehi">elektron</span> (cyan) og en <span class="ehi">antineutrino</span> (stiplet ring). Z stiger med 1, N falder med 1 &mdash; skr&aring;t op mod venstre i kernekortet.</p>
+      </div>
+      <div class="sec">
+        <div class="esub">K&aelig;dens slutpunkt</div>
+        <p class="ep">Pb-206 er stabilt og henfalder ikke videre. Det er det endelige produkt af alle U-238-seriens henfald, og ophobes gradvist i jordskorpen over geologiske tidsskalaer.</p>
+      </div>
+      <div class="sec">
+        <div class="esub">Kilde</div>
+        <p class="ep">Henfaldsk&aelig;de og data: NUBASE2020 / NNDC NuDat 3.0.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var CHAIN=[
+  {s:'Ra',Z:88,N:138,A:226,d:'a',h:'1600 \u00e5r',    e:'4.87 MeV',t:4200},
+  {s:'Rn',Z:86,N:136,A:222,d:'a',h:'3.82 d\u00f8gn',  e:'5.49 MeV',t:2650},
+  {s:'Po',Z:84,N:134,A:218,d:'a',h:'3.05 min',         e:'6.00 MeV',t:1676},
+  {s:'Pb',Z:82,N:132,A:214,d:'b',h:'26.8 min',         e:'1.02 MeV',t:1959},
+  {s:'Bi',Z:83,N:131,A:214,d:'b',h:'19.7 min',         e:'3.27 MeV',t:1919},
+  {s:'Po',Z:84,N:130,A:214,d:'a',h:'164 \u03bcs',      e:'7.69 MeV',t:400},
+  {s:'Pb',Z:82,N:128,A:210,d:'b',h:'22.3 \u00e5r',     e:'0.06 MeV',t:3645},
+  {s:'Bi',Z:83,N:127,A:210,d:'b',h:'5.01 d\u00f8gn',   e:'1.16 MeV',t:2685},
+  {s:'Po',Z:84,N:126,A:210,d:'a',h:'138 d\u00f8gn',    e:'5.30 MeV',t:3116},
+  {s:'Pb',Z:82,N:124,A:206,d:'s',h:'\u221e (stabil)',   e:'\u2014',  t:4500}
+];
+
+var BG=[
+  {Z:82,N:122},{Z:82,N:123},{Z:82,N:125},{Z:82,N:126},{Z:82,N:127},{Z:82,N:128},{Z:82,N:129},{Z:82,N:130},{Z:82,N:131},{Z:82,N:133},{Z:82,N:134},{Z:82,N:135},{Z:82,N:136},{Z:82,N:137},{Z:82,N:138},
+  {Z:83,N:122},{Z:83,N:123},{Z:83,N:124},{Z:83,N:125},{Z:83,N:126},{Z:83,N:128},{Z:83,N:129},{Z:83,N:130},{Z:83,N:132},{Z:83,N:133},{Z:83,N:134},{Z:83,N:135},{Z:83,N:136},{Z:83,N:137},{Z:83,N:138},
+  {Z:84,N:122},{Z:84,N:123},{Z:84,N:124},{Z:84,N:125},{Z:84,N:126},{Z:84,N:127},{Z:84,N:128},{Z:84,N:129},{Z:84,N:131},{Z:84,N:132},{Z:84,N:133},{Z:84,N:135},{Z:84,N:136},{Z:84,N:137},{Z:84,N:138},
+  {Z:85,N:122},{Z:85,N:123},{Z:85,N:124},{Z:85,N:125},{Z:85,N:126},{Z:85,N:127},{Z:85,N:128},{Z:85,N:129},{Z:85,N:130},{Z:85,N:131},{Z:85,N:132},{Z:85,N:133},{Z:85,N:134},{Z:85,N:135},{Z:85,N:136},{Z:85,N:137},{Z:85,N:138},
+  {Z:86,N:122},{Z:86,N:123},{Z:86,N:124},{Z:86,N:125},{Z:86,N:126},{Z:86,N:127},{Z:86,N:128},{Z:86,N:129},{Z:86,N:130},{Z:86,N:131},{Z:86,N:132},{Z:86,N:133},{Z:86,N:134},{Z:86,N:135},{Z:86,N:137},{Z:86,N:138},
+  {Z:87,N:122},{Z:87,N:123},{Z:87,N:124},{Z:87,N:125},{Z:87,N:126},{Z:87,N:127},{Z:87,N:128},{Z:87,N:129},{Z:87,N:130},{Z:87,N:131},{Z:87,N:132},{Z:87,N:133},{Z:87,N:134},{Z:87,N:135},{Z:87,N:136},{Z:87,N:137},{Z:87,N:138},
+  {Z:88,N:122},{Z:88,N:123},{Z:88,N:124},{Z:88,N:125},{Z:88,N:126},{Z:88,N:127},{Z:88,N:128},{Z:88,N:129},{Z:88,N:130},{Z:88,N:131},{Z:88,N:132},{Z:88,N:133},{Z:88,N:134},{Z:88,N:135},{Z:88,N:137},
+  {Z:89,N:122},{Z:89,N:123},{Z:89,N:124},{Z:89,N:125},{Z:89,N:126},{Z:89,N:127},{Z:89,N:128},{Z:89,N:129},{Z:89,N:130},{Z:89,N:131},{Z:89,N:132},{Z:89,N:133},{Z:89,N:134},{Z:89,N:135},{Z:89,N:136},{Z:89,N:137},{Z:89,N:138},
+  {Z:90,N:122},{Z:90,N:123},{Z:90,N:124},{Z:90,N:125},{Z:90,N:126},{Z:90,N:127},{Z:90,N:128},{Z:90,N:129},{Z:90,N:130},{Z:90,N:131},{Z:90,N:132},{Z:90,N:133},{Z:90,N:134},{Z:90,N:135},{Z:90,N:136},{Z:90,N:137},{Z:90,N:138}
+];
+
+var CS=new Set(CHAIN.map(function(c){return c.Z+','+c.N;}));
+var CELL=28,NMN=122,NMX=138,ZMN=82,ZMX=90;
+var PL=36,PR=6,PT=10,PB=24;
+var CW=PL+(NMX-NMN+1)*CELL+PR;
+var CVH=PT+(ZMX-ZMN+1)*CELL+PB;
+
+var cv=document.getElementById('chart');
+cv.width=CW; cv.height=CVH;
+var gx=cv.getContext('2d');
+var pc=document.getElementById('pcan');
+pc.width=CW; pc.height=CVH;
+var px=pc.getContext('2d');
+
+/* ── Canvas-farver ── */
+var DARK_THEME={
+  bg:'#030810', grid:'rgba(255,255,255,.04)', gridHi:'rgba(0,255,159,.18)',
+  axlbl:'#8ec8d8', axlbl2:'#00ff9f',
+  symText:'#d0eef5', aText:'#8ec8d8',
+  border:'#1a3a52', glow:true,
+  bgIsoFill:'#060e18', bgIsoStroke:'#1a3a52'
+};
+var LITE_THEME={
+  bg:'#f0f4f8', grid:'rgba(0,0,0,.09)', gridHi:'rgba(0,102,53,.20)',
+  axlbl:'#2a4a60', axlbl2:'#006635',
+  symText:'#0d1a22', aText:'#2a4a60',
+  border:'#b0c8e0', glow:false,
+  bgIsoFill:'#dce8f4', bgIsoStroke:'#b0c8e0'
+};
+var TH=DARK_THEME;
+var isDark=true;
+
+function xyPos(Z,N){return{x:PL+(N-NMN)*CELL+CELL/2,y:PT+(ZMX-Z)*CELL+CELL/2};}
+
+function isoCol(d){
+  if(isDark){
+    if(d==='a') return{fill:'#1c1300',stroke:'#ffd60a',glow:'#ffd60a'};
+    if(d==='b') return{fill:'#001030',stroke:'#2090ff',glow:'#4aabff'};
+    return{fill:'#001408',stroke:'#aaffcc',glow:'#aaffcc'};
+  } else {
+    if(d==='a') return{fill:'#fff8e0',stroke:'#cc8800',glow:'#cc8800'};
+    if(d==='b') return{fill:'#e0eeff',stroke:'#0055cc',glow:'#0055cc'};
+    return{fill:'#e0f4e8',stroke:'#006633',glow:'#006633'};
+  }
+}
+
+var parts=[];
+
+function spawnParts(fi){
+  if(fi>=CHAIN.length-1) return;
+  var iso=CHAIN[fi],nxt=CHAIN[fi+1];
+  var src=xyPos(iso.Z,iso.N),dst=xyPos(nxt.Z,nxt.N);
+  var dx=dst.x-src.x,dy=dst.y-src.y;
+  var dl=Math.sqrt(dx*dx+dy*dy)||1;
+  var ux=dx/dl,uy=dy/dl;
+  if(iso.d==='a'){
+    parts.push({x:src.x,y:src.y,vx:ux*3.8,vy:uy*3.8,r:5,col:'#ffd60a',al:1,life:90,tp:'dot',label:'\u03b1'});
+    parts.push({x:src.x,y:src.y,vx:-ux*1.5,vy:-uy*1.5,r:10,col:'#ff6600',al:1,life:90,tp:'dot',label:'kerne'});
+  } else if(iso.d==='b'){
+    parts.push({x:src.x,y:src.y,vx:ux*4.2,vy:uy*4.2,r:4,col:'#40aaff',al:1,life:90,tp:'dot',label:'e\u207b'});
+    parts.push({x:src.x,y:src.y,vx:-ux*4.0,vy:-uy*4.0,r:7,col:'#00cfff',al:0.85,life:90,tp:'ring',label:'\u03bd\u0305\u2091'});
+  }
+}
+
+function tickParts(){
+  px.clearRect(0,0,CW,CVH);
+  for(var i=parts.length-1;i>=0;i--){
+    var p=parts[i];
+    p.x+=p.vx; p.y+=p.vy;
+    p.vx*=0.96; p.vy*=0.96;
+    p.life--;
+    p.al=Math.max(0,p.al-0.011);
+    if(p.life<=0||p.al<=0){parts.splice(i,1);continue;}
+    px.globalAlpha=p.al;
+    if(p.tp==='ring'){
+      px.setLineDash([4,3]);
+      px.strokeStyle=p.col; px.lineWidth=2;
+      px.beginPath(); px.arc(p.x,p.y,p.r,0,Math.PI*2); px.stroke();
+      px.setLineDash([]);
+      px.fillStyle=p.col; px.font='bold 8px Courier New,monospace'; px.textAlign='center';
+      px.fillText(p.label,p.x,p.y-p.r-3);
+    } else {
+      px.fillStyle=p.col;
+      px.beginPath(); px.arc(p.x,p.y,p.r,0,Math.PI*2); px.fill();
+      px.fillStyle=p.col; px.font='bold 8px Courier New,monospace'; px.textAlign='center';
+      px.fillText(p.label,p.x,p.y-p.r-3);
+    }
+    px.globalAlpha=1;
+  }
+}
+
+var glowPh=0;
+function drawChart(idx){
+  glowPh=(glowPh+.07)%(Math.PI*2);
+  var glowR=14+10*Math.sin(glowPh);
+  gx.fillStyle=TH.bg; gx.fillRect(0,0,CW,CVH);
+  gx.strokeStyle=TH.grid; gx.lineWidth=.5;
+  for(var n=NMN;n<=NMX+1;n++){var lx=PL+(n-NMN)*CELL;gx.beginPath();gx.moveTo(lx,PT);gx.lineTo(lx,PT+(ZMX-ZMN+1)*CELL);gx.stroke();}
+  for(var z=ZMN;z<=ZMX+1;z++){var ly=PT+(ZMX-z)*CELL;gx.beginPath();gx.moveTo(PL,ly);gx.lineTo(PL+(NMX-NMN+1)*CELL,ly);gx.stroke();}
+  var mx=PL+(126-NMN)*CELL;
+  gx.strokeStyle=TH.gridHi; gx.lineWidth=1; gx.setLineDash([4,3]);
+  gx.beginPath(); gx.moveTo(mx,PT); gx.lineTo(mx,PT+(ZMX-ZMN+1)*CELL); gx.stroke();
+  gx.setLineDash([]);
+  gx.fillStyle=TH.axlbl2; gx.font='8px Courier New,monospace'; gx.textAlign='center';
+  gx.fillText('N=126',mx+1,PT-2);
+  gx.fillStyle=TH.axlbl; gx.font='9px Courier New,monospace'; gx.textAlign='center';
+  for(var n=NMN;n<=NMX;n+=2){gx.fillText(n,PL+(n-NMN)*CELL+CELL/2,PT+(ZMX-ZMN+1)*CELL+13);}
+  gx.textAlign='right'; gx.fillStyle=TH.axlbl;
+  for(var z=ZMN;z<=ZMX;z++){gx.fillText(z,PL-3,PT+(ZMX-z)*CELL+CELL/2+3);}
+  for(var i=0;i<BG.length;i++){
+    var b=BG[i];
+    if(b.N<NMN||b.N>NMX||b.Z<ZMN||b.Z>ZMX||CS.has(b.Z+','+b.N)) continue;
+    var bp=xyPos(b.Z,b.N);
+    gx.fillStyle=TH.bgIsoFill; gx.strokeStyle=TH.bgIsoStroke; gx.lineWidth=.5;
+    gx.fillRect(bp.x-CELL/2+1,bp.y-CELL/2+1,CELL-2,CELL-2);
+    gx.strokeRect(bp.x-CELL/2+1,bp.y-CELL/2+1,CELL-2,CELL-2);
+  }
+  for(var i=0;i<CHAIN.length-1;i++){
+    var a=CHAIN[i],b=CHAIN[i+1];
+    var ap=xyPos(a.Z,a.N),bp=xyPos(b.Z,b.N);
+    gx.globalAlpha=(i<idx)?.7:.22;
+    gx.strokeStyle=isDark?((a.d==='a')?'#ffd60a':'#2090ff'):((a.d==='a')?'#cc8800':'#0055cc'); gx.lineWidth=1.5;
+    var ddx=bp.x-ap.x,ddy=bp.y-ap.y,dl2=Math.sqrt(ddx*ddx+ddy*ddy)||1;
+    var dux=ddx/dl2,duy=ddy/dl2,off=CELL/2;
+    var x1=ap.x+dux*off,y1=ap.y+duy*off,x2=bp.x-dux*off,y2=bp.y-duy*off;
+    gx.beginPath(); gx.moveTo(x1,y1); gx.lineTo(x2,y2); gx.stroke();
+    var ha=Math.atan2(ddy,ddx);
+    gx.beginPath(); gx.moveTo(x2,y2); gx.lineTo(x2-7*Math.cos(ha-.4),y2-7*Math.sin(ha-.4)); gx.moveTo(x2,y2); gx.lineTo(x2-7*Math.cos(ha+.4),y2-7*Math.sin(ha+.4)); gx.stroke();
+    gx.globalAlpha=1;
+  }
+  for(var i=0;i<CHAIN.length;i++){
+    var iso=CHAIN[i];
+    var p=xyPos(iso.Z,iso.N);
+    var col=isoCol(iso.d);
+    var cx2=p.x-CELL/2+1,cy2=p.y-CELL/2+1,cw2=CELL-2,ch2=CELL-2;
+    if(i===idx&&TH.glow){gx.shadowBlur=glowR; gx.shadowColor=col.glow;}
+    gx.fillStyle=col.fill; gx.fillRect(cx2,cy2,cw2,ch2);
+    gx.strokeStyle=col.stroke; gx.lineWidth=(i===idx)?2.5:2;
+    gx.strokeRect(cx2,cy2,cw2,ch2);
+    gx.shadowBlur=0; gx.shadowColor='transparent';
+    gx.fillStyle=(i<=idx)?TH.symText:TH.axlbl;
+    gx.font='bold 11px Courier New,monospace'; gx.textAlign='center';
+    gx.fillText(iso.s,p.x,p.y-1);
+    gx.font='9px Courier New,monospace';
+    gx.fillStyle=(i<=idx)?TH.aText:TH.axlbl;
+    gx.fillText(iso.A,p.x,p.y+10);
+  }
+}
+
+var ELNAME={82:'Bly',83:'Bismuth',84:'Polonium',85:'Astat',86:'Radon',87:'Francium',88:'Radium',89:'Actinium',90:'Thorium'};
+function sup(n){return '<sup>'+n+'</sup>';}
+
+function updateUI(i){
+  var iso=CHAIN[i];
+  document.getElementById('sym').textContent=iso.s;
+  document.getElementById('mnum').textContent=iso.A;
+  document.getElementById('iname').innerHTML=(ELNAME[iso.Z]||iso.s).toUpperCase()+'&#8209;'+iso.A;
+  document.getElementById('zv').textContent=iso.Z;
+  document.getElementById('nv').textContent=iso.N;
+  document.getElementById('ev').textContent=iso.e;
+  document.getElementById('hl').textContent=iso.h;
+  var dt=document.getElementById('dtag');
+  if(iso.d==='a'){dt.innerHTML='&alpha;';dt.style.color='#ffd60a';dt.style.border='2px solid #ffd60a';}
+  else if(iso.d==='b'){dt.innerHTML='&beta;<sup>&#8722;</sup>';dt.style.color='#40aaff';dt.style.border='2px solid #40aaff';}
+  else{dt.innerHTML='&#x2014;';dt.style.color='#00ff9f';dt.style.border='2px solid #00ff9f';}
+  var ic=document.getElementById('icard');
+  ic.style.borderLeftColor=(iso.d==='a')?'#ffd60a':(iso.d==='b')?'#40aaff':'#00ff9f';
+  document.getElementById('prog').style.width=(i/(CHAIN.length-1)*100)+'%';
+  document.getElementById('prog').style.background=(iso.d==='a')?'#ffd60a':(iso.d==='b')?'#40aaff':'#00ff9f';
+  document.getElementById('si2').textContent='Trin '+(i+1)+' / '+CHAIN.length;
+  var eq='';
+  if(iso.d==='a'&&i<CHAIN.length-1){
+    var nx=CHAIN[i+1];
+    eq=sup(iso.A)+iso.s+' &rarr; '+sup(nx.A)+nx.s+'<br>'
+      +'+ <span class="ac">'+sup(4)+'He<sup>2+</sup> (&alpha;-partikel)</span>';
+  } else if(iso.d==='b'&&i<CHAIN.length-1){
+    var nx=CHAIN[i+1];
+    eq=sup(iso.A)+iso.s+' &rarr; '+sup(nx.A)+nx.s+'<br>'
+      +'+ <span class="bc">e<sup>&#8722;</sup> (&beta;<sup>&#8722;</sup>-partikel)</span><br>'
+      +'+ <span class="nc">&nu;&#773;<sub>e</sub> (antineutrino)</span>';
+  } else {
+    eq='<span style="color:#00ff9f">'+sup(iso.A)+iso.s+' er stabilt &mdash; ingen henfald</span>';
+  }
+  document.getElementById('eqh').innerHTML=eq;
+  buildTL(i);
+}
+
+function buildTL(cur){
+  var tl=document.getElementById('tl'); tl.innerHTML='';
+  for(var i=0;i<CHAIN.length;i++){
+    var iso=CHAIN[i];
+    var n=document.createElement('span');
+    n.className='tn'+(i===cur?' act':'');
+    n.textContent=iso.s+'-'+iso.A;
+    (function(ii){n.onclick=function(){jumpTo(ii);};})(i);
+    tl.appendChild(n);
+    if(i<CHAIN.length-1){var ar=document.createElement('span');ar.className='ta '+(iso.d==='a'?'a':'b');ar.innerHTML='&rarr;';tl.appendChild(ar);}
+  }
+}
+
+var curIdx=0,playing=true,spd=1,startTS=null,pEl=0;
+var SPD=[.25,.5,1,2,4,8,12];
+function setSpd(v){spd=SPD[v-1];document.getElementById('spdv').textContent=spd+'x';}
+
+function loop(ts){
+  if(!startTS) startTS=ts;
+  if(playing){
+    var el=(ts-startTS)*spd+pEl;
+    if(el>=CHAIN[curIdx].t){
+      if(curIdx<CHAIN.length-1){
+        spawnParts(curIdx);
+        curIdx++; startTS=ts; pEl=0;
+        updateUI(curIdx);
+      } else {
+        playing=false;
+        document.getElementById('ppbtn').innerHTML='&#x23F9; F\u00c6RDIG';
+        document.getElementById('sttxt').innerHTML='F\u00c6RDIG';
+      }
+    }
+  }
+  drawChart(curIdx);
+  tickParts();
+  requestAnimationFrame(loop);
+}
+
+function togglePP(){
+  if(curIdx>=CHAIN.length-1&&!playing){doRestart();return;}
+  playing=!playing;
+  if(playing){
+    document.getElementById('ppbtn').innerHTML='&#x23F8; PAUSE';
+    document.getElementById('sttxt').innerHTML='K\u00d8RENDE';
+    startTS=null;
+  } else {
+    if(startTS!==null) pEl+=(performance.now()-startTS)*spd;
+    startTS=null;
+    document.getElementById('ppbtn').innerHTML='&#x25B6; SPIL';
+    document.getElementById('sttxt').innerHTML='PAUSET';
+  }
+}
+
+function doRestart(){
+  curIdx=0;playing=true;startTS=null;pEl=0;parts=[];
+  document.getElementById('ppbtn').innerHTML='&#x23F8; PAUSE';
+  document.getElementById('sttxt').innerHTML='K\u00d8RENDE';
+  updateUI(0);
+}
+
+function jumpTo(i){
+  if(startTS!==null&&playing) pEl+=(performance.now()-startTS)*spd;
+  curIdx=i;playing=false;startTS=null;pEl=0;parts=[];
+  document.getElementById('ppbtn').innerHTML='&#x25B6; SPIL';
+  document.getElementById('sttxt').innerHTML='PAUSET';
+  updateUI(i);
+}
+
+function toggleTheme(){
+  isDark=!isDark;
+  TH=isDark?DARK_THEME:LITE_THEME;
+  var simEl=document.getElementById('sim');
+  simEl.classList.toggle('dark',isDark);
+  simEl.classList.toggle('light',!isDark);
+  document.getElementById('thmbtn').innerHTML=isDark?'&#x263C; LYS TILSTAND':'&#x263D; M\u00d8RK TILSTAND';
+}
+
+function kopierKode(){
+  var btn=document.getElementById('kobtn');
+  var src=document.documentElement?document.documentElement.outerHTML:document.querySelector('#sim').outerHTML;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(src).then(function(){
+      btn.innerHTML='&#x2713; KOPIERET!';btn.style.color='#00ff9f';btn.style.borderColor='#00ff9f';
+      setTimeout(function(){btn.innerHTML='&#x2398; KOPIER KODE';btn.style.color='';btn.style.borderColor='';},2500);
+    }).catch(function(){btn.innerHTML='&#x26A0; FEJL';setTimeout(function(){btn.innerHTML='&#x2398; KOPIER KODE';},2000);});
+  }
+}
+
+document.getElementById('spds').value=3; setSpd(3);
+updateUI(0);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
