@@ -409,7 +409,6 @@ canvas#kerne{display:block; position:absolute; inset:0; width:100%; height:100%;
 
     <label class="chk"><input type="checkbox" id="cNZ" checked> Vis <span class="sym">N</span> = <span class="sym">Z</span>-linjen</label>
     <label class="chk"><input type="checkbox" id="cMagi"> Vis magiske tal</label>
-    <label class="chk"><input type="checkbox" id="cTekst" checked> Vis felttekst, når der er plads</label>
     <label class="chk"><input type="checkbox" id="cOversigt" checked> Vis oversigtskort</label>
 
     <div class="btn-row" style="margin-top:4px;">
@@ -8159,7 +8158,7 @@ var s = 10;                 /* feltstørrelse i px */
 var vN = -1.5, vZ = -1.5;   /* nuklidkoordinat ved kortets nederste venstre hjørne */
 var valgt = null;           /* {N, Z} */
 var over  = null;           /* feltet under markøren */
-var visNZ = true, visMagi = false, visTekst = true, visOversigt = true;
+var visNZ = true, visMagi = false, visOversigt = true;
 
 var MAGISKE = [2, 8, 20, 28, 50, 82, 126];
 var BAAND_MINPX = 6;      /* under denne feltstørrelse tegnes kun én farve */
@@ -9979,8 +9978,9 @@ function tegn() {
     }
   }
 
-  /* felttekst */
-  if (visTekst && s >= 17) {
+  /* Felttekst. Den vises altid, når feltet er stort nok til den — under
+     17 px er der ikke plads, og så udelades den af sig selv. */
+  if (s >= 17) {
     var toLinjer = s >= 30;
     gx.textAlign = 'center';
     gx.textBaseline = 'middle';
@@ -10747,7 +10747,6 @@ function bind() {
 
   document.getElementById('cNZ').addEventListener('change', function () { visNZ = this.checked; tegn(); });
   document.getElementById('cMagi').addEventListener('change', function () { visMagi = this.checked; tegn(); });
-  document.getElementById('cTekst').addEventListener('change', function () { visTekst = this.checked; tegn(); });
   document.getElementById('cOversigt').addEventListener('change', function () { visOversigt = this.checked; tegn(); });
 
   document.getElementById('bHele').addEventListener('click', function () {
