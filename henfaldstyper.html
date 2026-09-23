@@ -234,6 +234,12 @@ canvas#kerne{display:block; position:absolute; inset:0; width:100%; height:100%;
 .mval{font-size:15px; font-weight:700; color:var(--text); font-family:var(--font);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;}
 .munit{font-size:11px; color:var(--dim); font-weight:400;}
+/* Grundstoffets navn under nuklidbetegnelsen. Samme lille skrift som
+   etiketten. Et langt navn klippes af frem for at bryde om, så striben
+   ikke bliver højere af Protactinium. */
+.mnavn{font-size:10px; letter-spacing:.04em; color:var(--dim); display:block;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+[data-theme="light"] .mnavn{font-weight:700;}
 [data-theme="light"] .munit{font-weight:700;}
 .usynlig{visibility:hidden;}
 /* symboler må aldrig versaliseres */
@@ -454,7 +460,8 @@ canvas#kerne{display:block; position:absolute; inset:0; width:100%; height:100%;
     <div class="strip">
       <div class="meters">
         <div class="meter"><span class="mlabel">Nuklid</span>
-          <span class="mval sym" id="mNuklid">&ndash;</span></div>
+          <span class="mval sym" id="mNuklid">&ndash;</span>
+          <span class="mnavn" id="mNavn"></span></div>
         <div class="meter"><span class="mlabel"><span class="sym">Z</span> &mdash; protontal</span>
           <span class="mval" id="mZ">&ndash;</span></div>
         <div class="meter"><span class="mlabel"><span class="sym">N</span> &mdash; neutrontal</span>
@@ -631,6 +638,10 @@ canvas#kerne{display:block; position:absolute; inset:0; width:100%; height:100%;
    ikke en henfaldsvej.
    ===================================================================== */
 var RAA_SYMBOLER = 'H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf';
+/* Grundstoffernes danske navne, Z = 1 til 98, i samme orden som
+   RAA_SYMBOLER. De står i nuklidfeltet under isotopbetegnelsen. */
+var RAA_NAVNE = 'Hydrogen Helium Lithium Beryllium Bor Carbon Nitrogen Oxygen Fluor Neon Natrium Magnesium Aluminium Silicium Fosfor Svovl Klor Argon Kalium Calcium Scandium Titan Vanadium Krom Mangan Jern Cobalt Nikkel Kobber Zink Gallium Germanium Arsen Selen Brom Krypton Rubidium Strontium Yttrium Zirconium Niobium Molybdæn Technetium Ruthenium Rhodium Palladium Sølv Cadmium Indium Tin Antimon Tellur Jod Xenon Cæsium Barium Lanthan Cerium Praseodym Neodym Promethium Samarium Europium Gadolinium Terbium Dysprosium Holmium Erbium Thulium Ytterbium Lutetium Hafnium Tantal Wolfram Rhenium Osmium Iridium Platin Guld Kviksølv Thallium Bly Bismuth Polonium Astat Radon Francium Radium Actinium Thorium Protactinium Uran Neptunium Plutonium Americium Curium Berkelium Californium';
+
 var RAA_GAMMA = `7 4 g B+ 477.6/10.4
 8 2 g B- 980/84
 10 6 g B+ 718.4/100,1021.6/1.5
@@ -8029,6 +8040,7 @@ var RAA_NUKLIDER = `1 1 7288.971064 S IS=99.9855
 
 /* ---------------- opbygning af opslagstabellen ---------------- */
 var SYM = RAA_SYMBOLER.split(' ');          /* SYM[Z-1] */
+var STOFNAVN = RAA_NAVNE.split(' ');        /* STOFNAVN[Z-1] */
 var NUK = new Map();                        /* nøgle Z*1000+N */
 var ME  = new Map();                        /* masseoverskud, samme nøgle */
 var NMAX = 0, ZMAX = 0;
@@ -10166,6 +10178,7 @@ function vis(o) {
     ['mNuklid', 'mZ', 'mN', 'mA', 'mT12', 'mType', 'mQa', 'mQb', 'mQp', 'mQe']
       .forEach(function (id) { saet(id, '\u2013'); });
     saet('mT12e', '');
+    saet('mNavn', '');
     saet('infoGrene', 'Klik p\u00e5 et felt i kortet.');
     saet('infoNote', '\u2013');
     return;
@@ -10173,6 +10186,7 @@ function vis(o) {
   var iso = (exc && exc.slags === 'isomer' && valgt &&
              o.N === valgt.N && o.Z === valgt.Z) ? exc : null;
   saet('mNuklid', iso ? navn(o) + 'm' : navn(o));
+  saet('mNavn', STOFNAVN[o.Z - 1] || '');
   saet('mZ', String(o.Z));
   saet('mN', String(o.N));
   saet('mA', String(o.A));
