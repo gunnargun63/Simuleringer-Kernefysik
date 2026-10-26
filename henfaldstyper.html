@@ -8159,6 +8159,10 @@ function Qbmin(N, Z) {                     /* mod (N-1, Z+1) */
   var a = ME.get(noegle(N, Z)), b = ME.get(noegle(N - 1, Z + 1));
   return (a === undefined || b === undefined) ? null : a - b;
 }
+function Q2bmin(N, Z) {                    /* mod (N-2, Z+2) */
+  var a = ME.get(noegle(N, Z)), b = ME.get(noegle(N - 2, Z + 2));
+  return (a === undefined || b === undefined) ? null : a - b;
+}
 function Qalfa(N, Z) {                     /* mod (N-2, Z-2) + alfa */
   var a = ME.get(noegle(N, Z)), b = ME.get(noegle(N - 2, Z - 2)), he = ME.get(noegle(2, 2));
   return (a === undefined || b === undefined || he === undefined) ? null : a - b - he;
@@ -8258,6 +8262,9 @@ function navn(o) { return o.sym + '-' + o.A; }
 function typeTekst(o) {
   if (o.stabil) return 'stabil';
   return o.baand.map(function (b) {
+    /* Dobbelt betaminus deler farve med det enkelte, men må ikke dele navn:
+       de to veje fører til hver sin datterkerne. */
+    if (b.vej === '2B-') return 'dobbelt ' + KLASSENAVN.bmin;
     return (b.k === 'anden') ? (KORTVEJ[b.vej] || b.vej) : KLASSENAVN[b.k];
   }).join(', ');
 }
@@ -8638,6 +8645,11 @@ function kerneRadius(A, plads) {
 var TYPER = {
   alfa:  { navn: '\u03b1', dZ: -2, dN: -2, udP: 2, udN: 2 },
   bmin:  { navn: '\u03b2\u2212', dZ: 1, dN: -1, udP: 0, udN: 0 },
+  /* Dobbelt betaminus: to neutroner bliver til protoner på én gang, og der
+     kommer to elektroner og to antineutrinoer ud. Vejen findes netop dér,
+     hvor det enkelte betahenfald er energetisk lukket — Ge-76 kan ikke nå
+     As-76, men godt Se-76. */
+  '2bmin': { navn: 'dobbelt \u03b2\u2212', dZ: 2, dN: -2, udP: 0, udN: 0 },
   bplus: { navn: '\u03b2+', dZ: -1, dN: 1, udP: 0, udN: 0 },
   ec:    { navn: 'EC', dZ: -1, dN: 1, udP: 0, udN: 0 },
   p:     { navn: 'p', dZ: -1, dN: 0, udP: 1, udN: 0 },
@@ -8653,7 +8665,8 @@ var TYPER = {
 function typeAfVej(m) {
   if (m === 'IT') return 'gamma';
   if (m === 'A') return 'alfa';
-  if (m === 'B-' || m === '2B-' || m === 'B-n' || m === 'B-p' || m === 'B-A') return 'bmin';
+  if (m === '2B-') return '2bmin';
+  if (m === 'B-' || m === 'B-n' || m === 'B-p' || m === 'B-A') return 'bmin';
   if (m === 'EC') return 'ec';
   if (m === 'e+') return 'bplus';
   if (m === 'B+' || m === 'B+p' || m === 'B+A' || m === 'B+SF' || m === '2B+' || m === 'ECp') return 'bplus';
@@ -8716,6 +8729,7 @@ function grenAndel(mor, vej, tilstand) {
 function dataVej(type) {
   if (type === 'alfa') return 'A';
   if (type === 'bmin') return 'B-';
+  if (type === '2bmin') return '2B-';
   if (type === 'bplus' || type === 'ec') return 'B+';
   if (type === 'gamma') return 'IT';
   return type;
@@ -8830,12 +8844,30 @@ function vaelgUdsendte() {
   }
   /* β-henfald omdanner en nukleon i stedet for at sende den ud */
   if (t.udP + t.udN > 0) tildelDatterpladser();
-  henfald.omdannet = null;
-  if (henfald.type === 'bmin' && ne.length) {
-    henfald.omdannet = { i: ne[Math.floor(ne.length / 2)], til: 'p' };
+  /* Ved dobbelt betaminus omdannes to neutroner. De vælges et stykke fra
+     hinanden, så eleven kan se, at det er to forskellige nukleoner. */
+  henfald.omdannede = [];
+  if ((henfald.type === 'bmin' || henfald.type === '2bmin') && ne.length) {
+    var midt = Math.floor(ne.length / 2);
+    henfald.omdannede.push({ i: ne[midt], til: 'p' });
+    if (henfald.type === '2bmin' && ne.length > 1) {
+      var and2 = ne[(midt + Math.max(1, Math.floor(ne.length / 3))) % ne.length];
+      if (and2 === ne[midt]) and2 = ne[(midt + 1) % ne.length];
+      henfald.omdannede.push({ i: and2, til: 'p' });
+    }
   } else if ((henfald.type === 'bplus' || henfald.type === 'ec') && pr.length) {
-    henfald.omdannet = { i: pr[Math.floor(pr.length / 2)], til: 'n' };
+    henfald.omdannede.push({ i: pr[Math.floor(pr.length / 2)], til: 'n' });
   }
+  henfald.omdannet = henfald.omdannede[0] || null;
+}
+
+/* Hvilken omdannelse hører denne nukleonplads til, hvis nogen? */
+function omdannelsenPaa(k) {
+  if (!henfald || !henfald.omdannede) return null;
+  for (var i = 0; i < henfald.omdannede.length; i++) {
+    if (henfald.omdannede[i].i === k) return henfald.omdannede[i];
+  }
+  return null;
 }
 
 /* Når panelet folder sig ud, må kortet kun krympe præcis så meget, som der
@@ -8911,6 +8943,9 @@ function afslutHenfald() {
       var mN = henfald.mor.N, mZ = henfald.mor.Z;
       if (henfald.type === 'bmin') {
         exc.Q = Qbmin(mN, mZ); exc.rest = ['elektronen', 'antineutrinoen'];
+      } else if (henfald.type === '2bmin') {
+        exc.Q = Q2bmin(mN, mZ);
+        exc.rest = ['de to elektroner', 'de to antineutrinoer'];
       } else if (henfald.type === 'bplus') {
         exc.Q = Qec(mN, mZ) - 1022; exc.rest = ['positronen', 'neutrinoen'];
       } else if (henfald.type === 'ec') {
@@ -8987,6 +9022,7 @@ function tegnRegnskab() {
   var uA = t.udP + t.udN, uZ = 0, uN = 0, uQ = 0, uNavn;
   if (henfald.type === 'alfa') { uZ = 2; uN = 2; uQ = 2; uNavn = '\u03b1-partikel'; }
   else if (henfald.type === 'bmin') { uQ = -1; uNavn = 'elektron + antineutrino'; }
+  else if (henfald.type === '2bmin') { uQ = -2; uNavn = '2 elektroner + 2 antineutrinoer'; }
   else if (henfald.type === 'bplus') { uQ = 1; uNavn = 'positron + neutrino'; }
   else if (henfald.type === 'ec') { uQ = 0; uNavn = 'neutrino, siden r\u00f8ntgen'; }
   else { uZ = t.udP; uN = t.udN; uQ = t.udP; uNavn = t.navn; }
@@ -9077,6 +9113,12 @@ function regnskabsnote(type) {
   if (type === 'bmin') {
     return 'A og ladningen g\u00e5r op. Z og N g\u00f8r ikke: en neutron er blevet ' +
            'til en proton, og en elektron blev dannet i processen';
+  }
+  if (type === '2bmin') {
+    return 'A og ladningen g\u00e5r op. Z og N g\u00f8r ikke: to neutroner er ' +
+           'blevet til protoner p\u00e5 \u00e9n gang, og de to elektroner blev ' +
+           'dannet i processen. Kernen springer to felter, fordi vejen over ' +
+           'nabokernen er lukket.';
   }
   if (type === 'bplus') {
     return 'A og ladningen g\u00e5r op. Z og N g\u00f8r ikke: en proton er blevet ' +
@@ -9356,13 +9398,14 @@ function tegnKerne() {
       var sx = lerp(x, klumpX + ox, uSaml), sy = lerp(y, klumpY + oy, uSaml);
       x = lerp(sx, maalX + ox, uFlyv * uFlyv);
       y = lerp(sy, maalY + oy, uFlyv * uFlyv);
-    } else if (henfald.omdannet && henfald.omdannet.i === k) {
+    } else if (omdannelsenPaa(k)) {
+      var omd = omdannelsenPaa(k);
       var u2 = klemt((p - 0.18) / 0.28);
       farve = blandFarve(henfald.protoner[k] ? '#ff7a5c' : '#9fb8c8',
-                         henfald.omdannet.til === 'p' ? '#ff7a5c' : '#9fb8c8', u2);
+                         omd.til === 'p' ? '#ff7a5c' : '#9fb8c8', u2);
       if (!isDark) {
         farve = blandFarve(henfald.protoner[k] ? '#b5341c' : '#4a6572',
-                           henfald.omdannet.til === 'p' ? '#b5341c' : '#4a6572', u2);
+                           omd.til === 'p' ? '#b5341c' : '#4a6572', u2);
       }
       if (u2 > 0.05 && u2 < 0.95) {
         g.save();
@@ -9381,9 +9424,8 @@ function tegnKerne() {
       g.font = 'bold ' + Math.round(nrk * 1.1) + "px 'Courier New',monospace";
       g.textAlign = 'center'; g.textBaseline = 'middle';
       var bogstav = henfald.protoner[k] ? 'p' : 'n';
-      if (henfald.omdannet && henfald.omdannet.i === k && p > 0.32) {
-        bogstav = henfald.omdannet.til;
-      }
+      var omd2 = omdannelsenPaa(k);
+      if (omd2 && p > 0.32) bogstav = omd2.til;
       g.fillText(bogstav, x, y + 0.5);
     }
   }
@@ -9477,7 +9519,25 @@ function tegnKerne() {
     var pl2 = henfald.pladser[henfald.omdannet.i];
     start = { x: cx + pl2.x * (R - nr * 0.6), y: cy + pl2.y * (R - nr * 0.6) };
   }
-  if (henfald.type === 'bmin') {
+  if (henfald.type === '2bmin') {
+    /* To elektroner og to antineutrinoer, hver fra sin omdannede neutron.
+       Kun den ene af hvert par får teksten, og den står i flertal. */
+    var start2 = start;
+    if (henfald.omdannede && henfald.omdannede[1]) {
+      var pl3 = henfald.pladser[henfald.omdannede[1].i];
+      start2 = { x: cx + pl3.x * (R - nr * 0.6), y: cy + pl3.y * (R - nr * 0.6) };
+    }
+    /* Teksten sættes på de to yderste, som skilles hurtigst ad; de to
+       inderste flyver med uden navn, så skriften ikke lapper over midtvejs. */
+    flyv(g, start2, kBR * 0.72, cy + kHJ * 0.09, p, 0.34, farveElektron(), '\u2212',
+         '', nr, true);
+    flyv(g, start, kBR * 0.80, cy + kHJ * 0.30, p, 0.34, farveElektron(), '\u2212',
+         '2 elektroner', nr);
+    flyv(g, start2, kBR * 0.78, cy - kHJ * 0.11, p, 0.34, farveNeutrino(), '',
+         'neutrino', nr, true);
+    flyv(g, start, kBR * 0.86, cy - kHJ * 0.32, p, 0.34, farveNeutrino(), '',
+         '2 antineutrinoer', nr);
+  } else if (henfald.type === 'bmin') {
     flyv(g, start, kBR * 0.80, cy + kHJ * 0.28, p, 0.34, farveElektron(), '\u2212',
          'elektron', nr);
     flyv(g, start, kBR * 0.86, cy - kHJ * 0.30, p, 0.34, farveNeutrino(), '',
@@ -9546,7 +9606,10 @@ function skriv(g, x, y, tekst, alfa) {
   g.fillStyle = D('#d0eef5', '#1a1a1a');
   g.font = "bold 11px 'Courier New',monospace";
   g.textAlign = 'center'; g.textBaseline = 'bottom';
-  g.fillText(tekst, x, y);
+  /* et langt navn som "2 antineutrinoer" må ikke løbe ud over lærredets
+     kant, når partiklen er nået helt ud til siden */
+  var halv = String(tekst).length * 3.3 + 4;
+  g.fillText(tekst, Math.max(halv, Math.min(x, kBR - halv)), y);
   g.restore();
 }
 
@@ -9561,7 +9624,9 @@ function tegnPartikel(g, x, y, r, farve, tegnT) {
   }
 }
 
-function flyv(g, start, mx, my, p, t0, farve, tegnT, navnTekst, nr) {
+/* skjulNavn bruges, når to ens partikler flyver ud sammen: kun den ene
+   får teksten, og den står i flertal. */
+function flyv(g, start, mx, my, p, t0, farve, tegnT, navnTekst, nr, skjulNavn) {
   var u = klemt((p - t0) / (1 - t0));
   if (u <= 0) return;
   var x = lerp(start.x, mx, u), y = lerp(start.y, my, u);
@@ -9579,7 +9644,7 @@ function flyv(g, start, mx, my, p, t0, farve, tegnT, navnTekst, nr) {
     spor2(g, start.x, start.y, x, y, farve);
     tegnPartikel(g, x, y, r, farve, tegnT);
   }
-  if (u > 0.3) skriv(g, x, y - r - 3, navnTekst, u);
+  if (u > 0.3 && !skjulNavn) skriv(g, x, y - r - 3, navnTekst, u);
 }
 
 /* det spor, en ladet partikel efterlader sig */
@@ -10304,10 +10369,32 @@ function vis(o) {
     note.push('Der frig\u00f8res ' + daNum(qa / 1000, 3) + ' MeV ved \u03b1-henfaldet.' +
               excSaetning('A', '\u03b1-partiklen og datterkernen'));
   }
-  if (!o.stabil && harBM && qb !== null && !exc) {
+  /* Dobbelt betaminus deler farvebånd med det enkelte, men ikke Q-værdi:
+     den enkelte vej er som regel lukket, og det er netop derfor, kernen
+     springer to felter. */
+  var harEnkeltBM = false, harDobbeltBM = false;
+  for (var iB = 0; iB < o.grene.length; iB++) {
+    if (o.grene[iB].m === '2B-') harDobbeltBM = true;
+    else if (typeAfVej(o.grene[iB].m) === 'bmin') harEnkeltBM = true;
+  }
+  if (!o.stabil && harBM && harEnkeltBM && qb !== null && !exc) {
     var e7 = excSaetning('B-', 'elektron og antineutrino');
     note.push('\u03b2\u2212-henfaldet frig\u00f8r ' + daNum(qb / 1000, 3) + ' MeV.' +
               (e7 || ' Energien deles mellem elektron og antineutrino.'));
+  }
+  if (!o.stabil && harDobbeltBM && !exc) {
+    var q2b = Q2bmin(o.N, o.Z);
+    var d2 = NUK.get(noegle(o.N - 2, o.Z + 2));
+    note.push('Kernen g\u00e5r ved dobbelt \u03b2\u2212-henfald' +
+              (d2 ? ' til ' + navn(d2) : '') + ': to neutroner bliver til ' +
+              'protoner p\u00e5 \u00e9n gang, og der kommer to elektroner og to ' +
+              'antineutrinoer ud.' +
+              (q2b !== null ? ' Det frig\u00f8r ' + daNum(q2b / 1000, 3) + ' MeV.' : '') +
+              (qb !== null && qb < 0
+                 ? ' Vejen over nabokernen er lukket: et enkelt \u03b2\u2212-henfald ' +
+                   'ville kr\u00e6ve ' + daNum(-qb / 1000, 3) + ' MeV tilf\u00f8rt udefra.'
+                 : ' To skridt p\u00e5 \u00e9n gang er s\u00e5 usandsynligt, at ' +
+                   'halveringstiden bliver astronomisk.'));
   }
   if (o.baand.length > 1) {
     note.push('Feltet har ' + (o.baand.length === 2 ? 'to' : 'tre') +
