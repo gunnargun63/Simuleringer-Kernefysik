@@ -10763,6 +10763,14 @@ function soeg() {
 /* ---------------- musen ---------------- */
 function pegepunkt(e) {
   var r = cv.getBoundingClientRect();
+  /* Striben vokser og skrumper med notens længde, og kortet tager den plads,
+     der er tilbage. Er kassen blevet en anden siden sidste opmåling, passer
+     BR og HJ ikke til det, musen ser, og klikket ville ramme en kerne ved
+     siden af. Så måler vi om først. */
+  if (Math.abs(r.width - BR) > 0.5 || Math.abs(r.height - HJ) > 0.5) {
+    opmaal(); begraens(); tegn();
+    r = cv.getBoundingClientRect();
+  }
   return { x: e.clientX - r.left, y: e.clientY - r.top };
 }
 function feltVed(x, y) {
@@ -11103,6 +11111,32 @@ function bind() {
     if (document.body.classList.contains('panelaaben')) tilpasKorthoejde();
     opmaal(); begraens(); tegn();
   });
+
+  /* Lærredets kasse kan skifte størrelse, uden at vinduet gør det: striben
+     under kortet bliver højere, når noten fylder flere linjer, og kortet har
+     flex:1, så det giver afkald på pladsen. Sker det uden en ny opmåling,
+     tegnes billedet strakt, fordi punktgitteret ikke passer til kassen.
+     Vi holder derfor øje med kasserne selv. */
+  if (typeof ResizeObserver !== 'undefined') {
+    var iGang = false;
+    var ro = new ResizeObserver(function () {
+      if (iGang) return;                     /* ingen løkke, hvis tegningen rører layoutet */
+      var rk = cv.getBoundingClientRect();
+      var rn = kcv ? kcv.getBoundingClientRect() : null;
+      var kortSkiftet = Math.abs(rk.width - BR) > 0.5 || Math.abs(rk.height - HJ) > 0.5;
+      var kerneSkiftet = rn && rn.width &&
+                         (Math.abs(rn.width - kBR) > 0.5 || Math.abs(rn.height - kHJ) > 0.5);
+      if (!kortSkiftet && !kerneSkiftet) return;
+      iGang = true;
+      opmaal(); begraens(); tegn();
+      if (henfald) tegnKerne();
+      iGang = false;
+    });
+    var kortKasse = document.querySelector('.kort-holder');
+    var kerneKasse = document.querySelector('.kerne-holder');
+    if (kortKasse) ro.observe(kortKasse);
+    if (kerneKasse) ro.observe(kerneKasse);
+  }
   window.addEventListener('orientationchange', function () {
     setTimeout(function () { opmaal(); begraens(); tegn(); }, 300);
   });
